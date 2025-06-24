@@ -58,7 +58,7 @@ export default function Home() {
 
   return (
     <main className="min-h-screen flex flex-col items-center p-8 bg-gray-100">
-      <h1 className="text-3xl font-bold mb-6">筋トレメモ</h1>
+      <h1 className="text-3xl font-bold mb-6">筋トレメモ（prototype）</h1>
 
       <div className="flex gap-2 mb-4">
         <input
