@@ -15,7 +15,7 @@ export default function Home() {
   const [supabase] = useState(() => createBrowserSupabaseClient())
   const [todos, setTodos] = useState<Todo[]>([])
   const [title, setTitle] = useState('')
-  const [filter, setFilter] = useState<'all'|'active'|'done'>('all')
+  const [filter, setFilter] = useState<'all' | 'active' | 'done'>('all')
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -24,36 +24,46 @@ export default function Home() {
 
   async function fetchTodos() {
     const { data, error } = await supabase
-      .from<Todo>('tasks')
+      // ← ここを .from<Todo, Todo> に変更
+      .from<Todo, Todo>('tasks')
       .select('*')
       .order('created_at', { ascending: false })
-    if (!error && data) setTodos(data)
+
+    if (!error && data) {
+      setTodos(data)
+    }
   }
 
   async function addTodo() {
     if (!title.trim()) return
+
     setLoading(true)
     const { data, error } = await supabase
-      .from<Todo>('tasks')
+      // 同じくこちらも .from<Todo, Todo>
+      .from<Todo, Todo>('tasks')
       .insert({ title, completed: false })
       .select()
     setLoading(false)
+
     if (error || !data) {
       alert('追加に失敗しました: ' + error?.message)
       return
     }
+
     setTitle('')
+    // 新しいタスクを先頭に追加
     setTodos([data[0], ...todos])
   }
 
   async function toggleComplete(todo: Todo) {
     const { data, error } = await supabase
-      .from('tasks')
+      .from<Todo, Todo>('tasks')
       .update({ completed: !todo.completed })
       .eq('id', todo.id)
       .select()
+
     if (!error && data) {
-      setTodos(todos.map(t => t.id === todo.id ? data[0] : t))
+      setTodos(todos.map(t => (t.id === todo.id ? data[0] : t)))
     }
   }
 
@@ -66,11 +76,9 @@ export default function Home() {
 
   // フィルタリング
   const filtered = todos.filter(t => {
-    return filter === 'all'
-      ? true
-      : filter === 'active'
-      ? !t.completed
-      : t.completed
+    if (filter === 'all') return true
+    if (filter === 'active') return !t.completed
+    return t.completed
   })
 
   return (
@@ -84,7 +92,7 @@ export default function Home() {
           placeholder="新しいタスクを入力"
           value={title}
           onChange={e => setTitle(e.target.value)}
-          onKeyDown={e => e.key==='Enter' && addTodo()}
+          onKeyDown={e => e.key === 'Enter' && addTodo()}
         />
         <button
           onClick={addTodo}
@@ -97,50 +105,54 @@ export default function Home() {
 
       {/* フィルタータブ */}
       <div className="flex space-x-4 mb-4">
-        {(['all','active','done'] as const).map(f => (
+        {(['all', 'active', 'done'] as const).map(f => (
           <button
             key={f}
             onClick={() => setFilter(f)}
             className={`px-4 py-1 rounded ${
-              filter===f ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600'
+              filter === f
+                ? 'bg-indigo-600 text-white'
+                : 'bg-white text-gray-600'
             }`}
           >
-            {f==='all' ? 'All' : f==='active' ? 'Active' : 'Done'}
+            {f === 'all' ? 'All' : f === 'active' ? 'Active' : 'Done'}
           </button>
         ))}
       </div>
 
       {/* タスクリスト */}
       <ul className="w-full max-w-lg space-y-3">
-        {filtered.length ? filtered.map(todo => (
-          <li
-            key={todo.id}
-            className="bg-white flex items-center justify-between p-3 rounded-lg shadow hover:shadow-lg transition"
-          >
-            <label className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                checked={todo.completed}
-                onChange={() => toggleComplete(todo)}
-                className="h-5 w-5 text-indigo-600"
-              />
-              <span className={`${todo.completed ? 'line-through text-gray-400' : ''}`}>
-                {todo.title}
-              </span>
-            </label>
-            <div className="flex items-center space-x-3">
-              <time className="text-sm text-gray-500">
-                {new Date(todo.created_at).toLocaleTimeString()}
-              </time>
-              <button
-                onClick={() => deleteTodo(todo.id)}
-                className="text-red-500 hover:text-red-700 transition"
-              >
-                🗑
-              </button>
-            </div>
-          </li>
-        )) : (
+        {filtered.length > 0 ? (
+          filtered.map(todo => (
+            <li
+              key={todo.id}
+              className="bg-white flex items-center justify-between p-3 rounded-lg shadow hover:shadow-lg transition"
+            >
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={todo.completed}
+                  onChange={() => toggleComplete(todo)}
+                  className="h-5 w-5 text-indigo-600"
+                />
+                <span className={`${todo.completed ? 'line-through text-gray-400' : ''}`}>
+                  {todo.title}
+                </span>
+              </label>
+              <div className="flex items-center space-x-3">
+                <time className="text-sm text-gray-500">
+                  {new Date(todo.created_at).toLocaleTimeString()}
+                </time>
+                <button
+                  onClick={() => deleteTodo(todo.id)}
+                  className="text-red-500 hover:text-red-700 transition"
+                >
+                  🗑
+                </button>
+              </div>
+            </li>
+          ))
+        ) : (
           <li className="text-center text-gray-400 py-6">タスクがありません</li>
         )}
       </ul>
